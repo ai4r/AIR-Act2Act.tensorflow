@@ -29,6 +29,6 @@
 
 ## How to train the model
 
-1.   Download AIR-Act2Act data from [here](https://drive.google.com/file/d/1Z_ZECV9uqZgNrKCuvEuN4t-1_TXWMxio/view?usp=sharing)  
+1.   Download AIR-Act2Act from [here](https://drive.google.com/file/d/1Z_ZECV9uqZgNrKCuvEuN4t-1_TXWMxio/view?usp=sharing) and put in 'data/joint files/'.  
 2.   Run 'data/extract_data.py' to extract training data.   
 3.   Run 'act2act/train.py' to train the model.
