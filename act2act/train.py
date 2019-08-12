@@ -13,9 +13,9 @@ from act2act.draw import save_anim, get_data_files
 from data.extract_data import to_angle, b_iter
 
 # Learning
-tf.app.flags.DEFINE_float("learning_rate", .005, "Learning rate.")
-tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.95, "Learning rate is multiplied by this much. 1 means no decay.")
-tf.app.flags.DEFINE_integer("learning_rate_step", 10000, "Every this many steps, do decay.")
+tf.app.flags.DEFINE_float("learning_rate", .001, "Learning rate.")
+tf.app.flags.DEFINE_float("learning_rate_decay_factor", 0.9, "Learning rate is multiplied by this much. 1 means no decay.")
+tf.app.flags.DEFINE_integer("learning_rate_step", 1000, "Every this many steps, do decay.")
 tf.app.flags.DEFINE_float("max_gradient_norm", 5, "Clip gradients to this norm.")
 tf.app.flags.DEFINE_integer("batch_size", 128, "Batch size to use during training.")
 tf.app.flags.DEFINE_integer("iterations", int(1e4), "Iterations to train for.")
