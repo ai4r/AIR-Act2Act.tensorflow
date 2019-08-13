@@ -2,7 +2,7 @@
 
 ### Preamble
 This License and Service Agreement (LSA) applies to all works and their derivative works based on [source form version] and [object form version] of AIR. Currently, the LSA for AIR has two policies, 'Open Source License' and 'Commercial License'. Therefore, all works including the source code and executable code of AIR and derivative works based thereon are subject to either 'Open Source License' or 'Commercial License' depending on the user's needs and purpose. Details related to the selection of the applicable license are specified in this LSA.
-If you use any or all of AIR in any form, you are deemed to have consented to this LSA. If you breach any of the terms and conditions set forth in this LSA, you are solely responsible for any losses or damages incurred by “Electronics and Communications Research Institute” (ETRI), and ETRI assume no responsibility for you or any third party.
+If you use any or all of AIR in any form, you are deemed to have consented to this LSA. If you breach any of the terms and conditions set forth in this LSA, you are solely responsible for any losses or damages incurred by “Electronics and Telecommunications Research Institute” (ETRI), and ETRI assume no responsibility for you or any third party.
 
 ### Commercial License
 If you use the [source form version] or [object form version] of AIR in whole or in part to develop a code or a derivative work, and you want to commercialize the result in some form, you will be covered under a commercial license.
