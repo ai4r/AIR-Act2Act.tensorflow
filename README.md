@@ -21,6 +21,8 @@
     │   ├── nao.py                  # Convert between 3D joint position and NAO joint angles
     │   └── rnn_cell_extensions.py  # Define rnn cells with residual connection
     ├── constants.py                # Global constants
+    ├── LICENSE.md
+    ├── LICENSE_ko.md
     └── README.md
 
 ## Behavior generation model
