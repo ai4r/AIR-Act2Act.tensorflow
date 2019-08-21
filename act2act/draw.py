@@ -1,8 +1,9 @@
 import glob
 import os
 import numpy as np
-from data.extract_data import to_angle
+from data.extract_data import to_angle, b_iter
 from utils.nao import solve_kinematics
+from constants import source_seq_size
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -11,22 +12,28 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def main():
     # show all test data
-    n_data, data_files, data_names = get_data_files("../data/test")
+    n_data, data_files, data_names = get_data_files("../data/extracted files/in_30/out_20/test")
     print('There are %d data.' % n_data)
     for action_index in range(n_data):
         print('%d: %s' % (action_index, data_names[action_index]))
 
     # select data name to draw
-    var = int(input("Input data number to display: "))
-    test_files = [name for name in data_files if data_names[var] in name]
+    while True:
+        var = int(input("Input data number to display: "))
+        test_files = [name for name in data_files if data_names[var] in name]
 
-    robot_angle_sequence = list()
-    for test_file in test_files:
-        array = np.loadtxt(test_file, dtype='float32')
-        robot_features = array[-1][1:]
-        robot_angles = to_angle(robot_features)
-        robot_angle_sequence.append(robot_angles)
-    save_anim(robot_angle_sequence, 'test.mp4', show=True)
+        robot_angle_sequence = list()
+        if not b_iter:
+            array = np.loadtxt(test_files[0], dtype='float32')
+            for line in array[source_seq_size[0]:]:
+                robot_angles = to_angle(line[1:])
+                robot_angle_sequence.append(robot_angles)
+        for test_file in test_files[1:]:
+            array = np.loadtxt(test_file, dtype='float32')
+            robot_features = array[-1][1:]
+            robot_angles = to_angle(robot_features)
+            robot_angle_sequence.append(robot_angles)
+        save_anim(robot_angle_sequence, 'test.mp4', show=True)
 
 
 def get_data_files(path):
