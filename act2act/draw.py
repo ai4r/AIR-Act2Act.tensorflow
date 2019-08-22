@@ -12,7 +12,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def main():
     # show all test data
-    n_data, data_files, data_names = get_data_files("../data/extracted files/in_30/out_20/test")
+    path = "../data/extracted files/in_30/out_20/train"
+    n_data, data_files, data_names = get_data_files(path)
     print('There are %d data.' % n_data)
     for action_index in range(n_data):
         print('%d: %s' % (action_index, data_names[action_index]))
@@ -25,15 +26,21 @@ def main():
         robot_angle_sequence = list()
         if not b_iter:
             array = np.loadtxt(test_files[0], dtype='float32')
-            for line in array[source_seq_size[0]:]:
+            for line in array[source_seq_size[0]:source_seq_size[0] * 2]:
                 robot_angles = to_angle(line[1:])
                 robot_angle_sequence.append(robot_angles)
-        for test_file in test_files[1:]:
+        for test_file in test_files:
             array = np.loadtxt(test_file, dtype='float32')
-            robot_features = array[-1][1:]
+            robot_features = array[source_seq_size[0] * 2][1:]
             robot_angles = to_angle(robot_features)
             robot_angle_sequence.append(robot_angles)
-        save_anim(robot_angle_sequence, 'test.mp4', show=True)
+        if "train" in path:
+            array = np.loadtxt(test_files[-1], dtype='float32')
+            for line in array[source_seq_size[0] * 2 + 1:]:
+                robot_angles = to_angle(line[1:])
+                robot_angle_sequence.append(robot_angles)
+        # save_anim(robot_angle_sequence, 'test.mp4', show=True)
+        save_anim(robot_angle_sequence, show=True)
 
 
 def get_data_files(path):
@@ -51,14 +58,15 @@ def get_data_files(path):
     return n_data, data_files, data_names
 
 
-def save_anim(robot_angle_sequence, anim_path, show=False):
+def save_anim(robot_angle_sequence, anim_path=None, show=False):
     # draw skeleton and save animation
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     anim = animation.FuncAnimation(fig, animate_3d, interval=100, blit=True, fargs=(robot_angle_sequence, ax),
                                    frames=len(robot_angle_sequence), repeat=False)
-    writer = animation.writers['ffmpeg'](fps=10)
-    anim.save(anim_path, writer=writer, dpi=250)
+    if anim_path:
+        writer = animation.writers['ffmpeg'](fps=10)
+        anim.save(anim_path, writer=writer, dpi=250)
     if show:
         plt.show()
     plt.close()
