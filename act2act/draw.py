@@ -23,24 +23,28 @@ def main():
         var = int(input("Input data number to display: "))
         test_files = [name for name in data_files if data_names[var] in name]
 
+        human_angle_sequence = list()
         robot_angle_sequence = list()
         if not b_iter:
             array = np.loadtxt(test_files[0], dtype='float32')
+            for line in array[:source_seq_size[0]]:
+                human_angles = to_angle(line[1:])
+                human_angle_sequence.append(human_angles)
             for line in array[source_seq_size[0]:source_seq_size[0] * 2]:
                 robot_angles = to_angle(line[1:])
                 robot_angle_sequence.append(robot_angles)
         for test_file in test_files:
             array = np.loadtxt(test_file, dtype='float32')
+
+            human_features = array[source_seq_size[0] - 1][1:]
+            human_angles = to_angle(human_features)
+            human_angle_sequence.append(human_angles)
+
             robot_features = array[source_seq_size[0] * 2][1:]
             robot_angles = to_angle(robot_features)
             robot_angle_sequence.append(robot_angles)
-        if "train" in path:
-            array = np.loadtxt(test_files[-1], dtype='float32')
-            for line in array[source_seq_size[0] * 2 + 1:]:
-                robot_angles = to_angle(line[1:])
-                robot_angle_sequence.append(robot_angles)
-        # save_anim(robot_angle_sequence, 'test.mp4', show=True)
-        save_anim(robot_angle_sequence, show=True)
+
+        save_anim([human_angle_sequence, robot_angle_sequence], show=True)
 
 
 def get_data_files(path):
@@ -58,14 +62,15 @@ def get_data_files(path):
     return n_data, data_files, data_names
 
 
-def save_anim(robot_angle_sequence, anim_path=None, show=False):
+def save_anim(angles, anim_path=None, show=False):
     # draw skeleton and save animation
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    anim = animation.FuncAnimation(fig, animate_3d, interval=100, blit=True, fargs=(robot_angle_sequence, ax),
-                                   frames=len(robot_angle_sequence), repeat=False)
+    ax1 = fig.add_subplot(121, projection='3d')
+    ax2 = fig.add_subplot(122, projection='3d')
+    anim = animation.FuncAnimation(fig, animate_3d, interval=100, blit=True, fargs=(angles, ax1, ax2),
+                                   frames=len(angles[1]), repeat=True)
+    writer = animation.writers['ffmpeg'](fps=10)
     if anim_path:
-        writer = animation.writers['ffmpeg'](fps=10)
         anim.save(anim_path, writer=writer, dpi=250)
     if show:
         plt.show()
@@ -83,24 +88,42 @@ def init_axis(ax):
     ax.set_ylim3d(-2, 2)
     ax.set_zlim3d(0, 4)
 
+    ax.view_init(30, -30)
 
-def animate_3d(f, robot_angle_sequence, ax):
-    init_axis(ax)
 
+def animate_3d(f, angles, ax1, ax2):
+    human_angle_sequence, robot_angle_sequence = angles
+
+    ret_artists = []
+    init_axis(ax1)
+    init_axis(ax2)
+
+    if f >= len(human_angle_sequence):
+        human_angles = human_angle_sequence[-1]
+    else:
+        human_angles = human_angle_sequence[f]
     robot_angles = robot_angle_sequence[f]
-    pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = solve_kinematics(*robot_angles)
 
+    pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = solve_kinematics(*human_angles)
     xs, ys, zs = add_points([pelvis, neck, head])
-    lobj1 = ax.plot(xs, ys, zs, color='b')
+    ret_artists.extend(ax1.plot(xs, ys, zs, color='b'))
     xs, ys, zs = add_points([neck, lshoulder, lelbow, lwrist])
-    lobj2 = ax.plot(xs, ys, zs, color='b')
+    ret_artists.extend(ax1.plot(xs, ys, zs, color='b'))
     xs, ys, zs = add_points([neck, rshoulder, relbow, rwrist])
-    lobj3 = ax.plot(xs, ys, zs, color='b')
+    ret_artists.extend(ax1.plot(xs, ys, zs, color='b'))
 
-    lines = lobj1 + lobj2 + lobj3
-    texts = [ax.text(0, 0, 0, '{0}/{1}'.format(f + 1, len(robot_angle_sequence)))]
+    pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = solve_kinematics(*robot_angles)
+    xs, ys, zs = add_points([pelvis, neck, head])
+    ret_artists.extend(ax2.plot(xs, ys, zs, color='b'))
+    xs, ys, zs = add_points([neck, lshoulder, lelbow, lwrist])
+    ret_artists.extend(ax2.plot(xs, ys, zs, color='b'))
+    xs, ys, zs = add_points([neck, rshoulder, relbow, rwrist])
+    ret_artists.extend(ax2.plot(xs, ys, zs, color='b'))
 
-    return tuple(lines) + tuple(texts)
+    ret_artists.extend([ax1.text(0, 0, 0, '{0}/{1}'.format(f + 1, len(human_angle_sequence)))])
+    ret_artists.extend([ax2.text(0, 0, 0, '{0}/{1}'.format(f + 1, len(robot_angle_sequence)))])
+
+    return ret_artists
 
 
 def add_points(points):
