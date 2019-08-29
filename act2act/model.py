@@ -16,6 +16,7 @@ class Act2ActModel(object):
     """Sequence-to-sequence model for human motion prediction"""
 
     def __init__(self,
+        architecture,
         source_seq_size,
         context_len,
         target_seq_size,
@@ -139,11 +140,18 @@ class Act2ActModel(object):
             raise(ValueError, "unknown loss: %s" % loss_to_use)
 
         # Build the RNN
-        outputs_robot, self.states = tf.contrib.legacy_seq2seq.tied_rnn_seq2seq(enc_in, dec_in, cell_robot, loop_function=lf)
+        if architecture == "basic":
+            _, enc_state = tf.contrib.rnn.static_rnn(cell_robot, enc_in, dtype=tf.float32)  # Encoder
+            outputs_robot, self.states = tf.contrib.legacy_seq2seq.rnn_decoder(dec_in, enc_state, cell_robot, loop_function=lf)  # Decoder
+        elif architecture == "tied":
+            outputs_robot, self.states = tf.contrib.legacy_seq2seq.tied_rnn_seq2seq(enc_in, dec_in, cell_robot, loop_function=lf)
+        else:
+            raise (ValueError, "Unknown architecture: %s" % architecture)
         outputs_robot = [tf.slice(outputs_robot[i], [0, 0], [-1, target_seq_size[1]]) for i in range(len(outputs_robot))]
         self.outputs = outputs_robot
 
         with tf.name_scope("loss_angles"):
+            # loss_angles = tf.exp(-tf.reduce_mean(tf.square(tf.subtract(dec_out, outputs_robot))))
             loss_angles = tf.reduce_mean(tf.square(tf.subtract(dec_out, outputs_robot)))
 
         self.loss         = loss_angles
@@ -168,7 +176,7 @@ class Act2ActModel(object):
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=20)
 
     def step(self, session, context_inputs, encoder_inputs, decoder_inputs, decoder_outputs,
-             forward_only, srnn_seeds=False ):
+             forward_only, srnn_seeds=False):
         """Run a step of the model feeding the given inputs.
         Args
             session: tensorflow session to use.
@@ -200,12 +208,12 @@ class Act2ActModel(object):
                                self.loss_summary,
                                self.learning_rate_summary]
 
-                outputs = session.run( output_feed, input_feed )
+                outputs = session.run(output_feed, input_feed)
                 return outputs[1], outputs[2], outputs[3], outputs[4]  # Gradient norm, loss, summaries
 
             else:
                 # Validation step, not on SRNN's seeds
-                output_feed = [self.loss, # Loss for this batch.
+                output_feed = [self.loss,  # Loss for this batch.
                                self.loss_summary]
 
                 outputs = session.run(output_feed, input_feed)

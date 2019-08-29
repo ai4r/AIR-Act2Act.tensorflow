@@ -1,16 +1,15 @@
-import os
-import time
-import glob
 import random
+import time
 import numpy as np
-from tqdm import tqdm
-
 import tensorflow as tf
 from six.moves import xrange  # pylint: disable=redefined-builtin
-import constants
+from tqdm import tqdm
+
+from data.constants import *
+from data.normalization import count_feature, denormalize_feature
+from data.extract_data import b_iter
 from act2act.model import Act2ActModel
-from act2act.draw import save_anim, get_data_files
-from data.extract_data import to_angle, b_iter
+from act2act.draw import get_data_files, draw
 
 # Learning
 tf.app.flags.DEFINE_float("learning_rate", .001, "Learning rate.")
@@ -21,17 +20,16 @@ tf.app.flags.DEFINE_integer("batch_size", 128, "Batch size to use during trainin
 tf.app.flags.DEFINE_integer("iterations", int(1e4), "Iterations to train for.")
 
 # Architecture
+tf.app.flags.DEFINE_string("architecture", "basic", "Seq2seq architecture to use: [basic, tied].")
 tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 1, "Number of layers in the model.")
 tf.app.flags.DEFINE_boolean("residual_velocities", True, "Add a residual connection that effectively models velocities")
 
 # Directories
-tf.app.flags.DEFINE_string("data_dir", os.path.normpath("../data/extracted files/"), "Data directory")
 tf.app.flags.DEFINE_string("train_dir", os.path.normpath("../model/"), "Training directory.")
 
 tf.app.flags.DEFINE_string("action", "all", "The action to train on.")
 tf.app.flags.DEFINE_string("loss_to_use", "sampling_based", "The type of loss to use, supervised or sampling_based")
-
 tf.app.flags.DEFINE_integer("test_every", 100, "How often to compute error on the test set.")
 tf.app.flags.DEFINE_integer("save_every", 100, "How often to compute error on the test set.")
 tf.app.flags.DEFINE_boolean("sample", False, "Set to True for sampling.")
@@ -41,28 +39,19 @@ tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
 FLAGS = tf.app.flags.FLAGS
 
 train_dir = os.path.normpath(os.path.join(FLAGS.train_dir,
-    'in_{0}'.format(constants.source_seq_size[0]),
-    'out_{0}'.format(constants.target_seq_size[0]))
-)
-
-data_dir = os.path.normpath(os.path.join(FLAGS.data_dir,
-    'in_{0}'.format(constants.source_seq_size[0]),
-    'out_{0}'.format(constants.target_seq_size[0]))
+    'in_{0}'.format(source_len), 'out_{0}'.format(target_len))
 )
 
 summaries_dir = os.path.normpath(os.path.join(train_dir, "log"))  # Directory for TB summaries
-
-dist_length = constants.source_seq_size[1] - constants.target_seq_size[1]
-seq_length_in = constants.source_seq_size[0]
-seq_length_out = constants.target_seq_size[0]
 
 
 def create_model(session, sampling=False):
     """Create translation model and initialize or load parameters in session."""
     model = Act2ActModel(
-        constants.source_seq_size,
-        constants.context_len,
-        constants.target_seq_size,
+        FLAGS.architecture,
+        (source_len, count_feature(human_feature_type) + dist_len),
+        context_len,
+        (target_len, count_feature(robot_feature_type)),
         FLAGS.size, # hidden layer size
         FLAGS.num_layers,
         FLAGS.max_gradient_norm,
@@ -82,7 +71,7 @@ def create_model(session, sampling=False):
         print( "train_dir", train_dir )
         if ckpt and ckpt.model_checkpoint_path:
             # Check if the specific checkpoint exists
-            if os.path.isfile(os.path.join(train_dir,"checkpoint-{0}.index".format(FLAGS.load))):
+            if os.path.isfile(os.path.join(train_dir, "checkpoint-{0}.index".format(FLAGS.load))):
                 ckpt_name = os.path.normpath(os.path.join(os.path.join(train_dir, "checkpoint-{0}".format(FLAGS.load))))
             else:
                 raise ValueError("Asked to load checkpoint {0}, but it does not seem to exist".format(FLAGS.load))
@@ -92,10 +81,8 @@ def create_model(session, sampling=False):
             return model
         else:
             print("Could not find checkpoint. Aborting.")
-            raise( ValueError, "Checkpoint {0} does not seem to exist".format( ckpt.model_checkpoint_path ) )
-
+            raise(ValueError, "Checkpoint {0} does not seem to exist".format(ckpt.model_checkpoint_path))
     model.saver = tf.train.Saver(tf.global_variables(), max_to_keep=20)
-
     return model
 
 
@@ -110,8 +97,7 @@ def data_generator(batch_size, data_type):
     if data_type not in ['test', 'train', 'validate']:
         raise (ValueError, "'{0}' is not an appropriate data type.".format(data_type))
 
-    data_path = 'train' if data_type == 'validate' else data_type
-    data_path = os.path.normpath(os.path.join(data_dir, data_path))
+    data_path = dst_test if data_type == 'test' else dst_train
     _, data_files, data_names = get_data_files(data_path)
 
     n_train = int(len(data_files) * 0.9)
@@ -138,18 +124,22 @@ def data_generator(batch_size, data_type):
             random.shuffle(data_files)
 
         for i in range(batch_size):
-            data = np.loadtxt(data_files[i], dtype='float32')
-            if data_type == 'test':
-                data = np.vstack((data, [data[-1]] * (seq_length_out - 1)))
-            if data_type == 'train' and random.random() < 0.9:
-                noise = np.random.normal(0, 0.01, data[0:-seq_length_out].shape)
-                data[0:-seq_length_out] += noise
-                data[data < 0.] = 0.
-                data[data > 1.] = 1.
-            context_inp.append(data[:seq_length_in])
-            encoder_inp.append(data[seq_length_in:-seq_length_out - 1, dist_length:])
-            decoder_inp.append(data[-seq_length_out - 1:-1, dist_length:])
-            decoder_out.append(data[-seq_length_out:, dist_length:])
+            with np.load(data_files[i]) as data:
+                human_seq = data['human_seq']
+                robot_seq = data['robot_seq']
+                if data_type == 'test':
+                    robot_seq = np.vstack((robot_seq, [robot_seq[-1]] * (target_len - 1)))
+                if data_type == 'train' and random.random() < 0.9:
+                    def add_noise(matrix):
+                        noise = np.random.normal(0, 0.01, matrix.shape)
+                        matrix += noise
+                    add_noise(human_seq)
+                    add_noise(robot_seq[:target_len])
+
+                context_inp.append(human_seq)
+                encoder_inp.append(robot_seq[:(source_len-1)])
+                decoder_inp.append(robot_seq[(source_len-1):-1])
+                decoder_out.append(robot_seq[-target_len:])
 
         if data_type == 'test':
             yield data_names[idx_test_data], \
@@ -246,14 +236,18 @@ def train():
                     pbar = tqdm(total=10)
                     test_data_gen = data_generator(batch_size=10, data_type='test')
                     for data_name, context_inputs, encoder_inputs, decoder_inputs, decoder_outputs in test_data_gen:
-                        trh_robot_angle_sequence, gen_robot_angle_sequence = list(), list()
-
+                        tru_robot_joint_positions, gen_robot_joint_positions = list(), list()
+                        tru_human_joint_positions = list()
                         gen_results = list()
                         for idx, val_decoder_out in enumerate(decoder_outputs):
                             if idx == 0 and not b_iter:
                                 for each_encoder_inp in encoder_inputs[0]:
-                                    trh_robot_angle_sequence.append(to_angle(each_encoder_inp))
-                                    gen_robot_angle_sequence.append(to_angle(each_encoder_inp))
+                                    joints = denormalize_feature(each_encoder_inp, robot_feature_type)
+                                    tru_robot_joint_positions.append(joints)
+                                    gen_robot_joint_positions.append(joints)
+                                for each_context_inp in context_inputs[0]:
+                                    joints = denormalize_feature(each_context_inp[dist_len:], human_feature_type)
+                                    tru_human_joint_positions.append(joints)
 
                             context_inp = context_inputs[idx]
                             encoder_inp = encoder_inputs[idx] if len(gen_results[:-1]) == 0 else np.vstack((
@@ -266,13 +260,14 @@ def train():
                                                         forward_only=True, srnn_seeds=True)
 
                             gen_results.append(next_seq[0][0])
-                            gen_results = gen_results[-seq_length_in:]
-                            gen_robot_angle_sequence.append(to_angle(next_seq[0][0]))
-                            trh_robot_angle_sequence.append(to_angle(val_decoder_out[0]))
+                            gen_results = gen_results[-source_len:]
+                            gen_robot_joint_positions.append(denormalize_feature(next_seq[0][0], robot_feature_type))
+                            tru_robot_joint_positions.append(denormalize_feature(val_decoder_out[0], robot_feature_type))
+                            tru_human_joint_positions.append(denormalize_feature(context_inp[-1][1:], human_feature_type))
 
-                        save_anim(trh_robot_angle_sequence, os.path.normpath(
+                        draw([tru_human_joint_positions, tru_robot_joint_positions], os.path.normpath(
                             os.path.join(train_dir, "checkpoint-{:04}".format(current_step), data_name + '_trh.mp4')))
-                        save_anim(gen_robot_angle_sequence, os.path.normpath(
+                        draw([tru_human_joint_positions, gen_robot_joint_positions], os.path.normpath(
                             os.path.join(train_dir, "checkpoint-{:04}".format(current_step), data_name + '_gen.mp4')))
 
                         pbar.update(1)

@@ -1,9 +1,10 @@
 ### copy joint files from  ###
 
 import glob
-import shutil
 import os
-from constants import actions
+import shutil
+
+from data.constants import actions
 
 src = r"D:\HRI DB\AIR-Act2Act-1"
 dst = r".\joint files"

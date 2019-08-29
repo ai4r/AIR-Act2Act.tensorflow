@@ -1,5 +1,5 @@
 import numpy as np
-from math import cos, sin, atan2, radians, fabs, copysign
+from math import cos, sin, atan2, fabs, copysign
 from utils.AIR import vectorize
 
 
@@ -100,7 +100,6 @@ def rotation_angle(v1, v2):
 # x-axis: up, y-axis: front, z-axis: right
 def solve_kinematics(LHipYawPitch, HeadPitch, LShoulderPitch, LShoulderRoll, LElbowYaw, LElbowRoll,
                      RShoulderPitch, RShoulderRoll, RElbowYaw, RElbowRoll):
-
     # pelvis (origin)
     pelvis = np.array([0, 0, 0])
 
@@ -140,7 +139,9 @@ def solve_kinematics(LHipYawPitch, HeadPitch, LShoulderPitch, LShoulderRoll, LEl
     T_rwrist_pelvis = np.matmul(T_relbow_pelvis, T_rwrist_relbow)
     rwrist = T_rwrist_pelvis[:3, -1]
 
-    return pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist
+    def change_coord(vector):
+        return np.array([-vector[2], vector[0], -vector[1]])
+    return tuple([change_coord(joint) for joint in (pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist)])
 
 
 def transform(a, alpha, d, theta):
