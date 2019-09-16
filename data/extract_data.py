@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from data.constants import *
 from data.normalization import normalize_body_data
-from utils.AIR import vectorize, read_joint
+from utils.AIR import vectorize, read_joint, move_camera_to_front
 
 kinect_frame_rate = 30  # frame rate of kinect camera
 target_frame_rate = 10  # frame rate of extracted data
@@ -97,63 +97,9 @@ def generate_seq(human, robot, third, pred_len=1):
     for start in range(len(human_features) - source_len - (pred_len - 1)):
         if all(v == [1.0] for v in third_features[start:start + source_len]):
             continue
-        human_seq = [third_features[i] + human_features[i] for i in range(start, start + source_len           )]
-        robot_seq = [                    robot_features[i] for i in range(start, start + source_len + pred_len)]
+        human_seq = [np.append(third_features[i], human_features[i]) for i in range(start, start + source_len           )]
+        robot_seq = [                             robot_features[i]  for i in range(start, start + source_len + pred_len)]
         yield human_seq, robot_seq
-
-
-def move_camera_to_front(body_info, body_id):
-    for f in range(len(body_info)):
-        # joints of the trunk
-        reference_body = body_info[f][body_id]["joints"]
-        r_16_kinect = vectorize(reference_body[16])
-        r_12_kinect = vectorize(reference_body[12])
-        r_20_kinect = vectorize(reference_body[20])
-        r_0_kinect = vectorize(reference_body[0])
-        dist_to_camera = np.linalg.norm(r_0_kinect)
-
-        # find the front direction vector
-        front_vector = np.cross(r_16_kinect - r_12_kinect, r_16_kinect - r_20_kinect)
-        norm = np.linalg.norm(front_vector, axis=0, ord=2)
-        norm = np.finfo(front_vector.dtype).eps if norm == 0 else norm
-        normalized_front_vector = front_vector / norm * dist_to_camera
-        cam_pos = r_0_kinect + normalized_front_vector
-        cam_dir = -normalized_front_vector
-        if all(x != 0 for x in cam_dir):
-            start_frame = f
-            break
-
-    for f in range(start_frame, len(body_info)):
-        body = body_info[f][body_id]["joints"]
-
-        # rotation factors
-        dist = np.linalg.norm(cam_dir)
-        dist_y = np.linalg.norm(np.array([cam_dir[0], cam_dir[2]]))
-        cos_x = dist_y / dist
-        sin_x = -cam_dir[1] / dist
-        cos_y = cam_dir[2] / dist_y
-        sin_y = cam_dir[0] / dist_y
-
-        # for all the 25 joints within each skeleton
-        for j in range(len(body)):
-            joint = body[j]
-
-            # 1. translation to the position of robot
-            trans_x = joint['x'] - cam_pos[0]
-            trans_y = joint['y'] - cam_pos[1]
-            trans_z = joint['z'] - cam_pos[2]
-
-            # 2. rotation about x-axis
-            rot_x = trans_x
-            rot_y = sin_x * trans_z + cos_x * trans_y
-            rot_z = cos_x * trans_z - sin_x * trans_y
-
-            # 3. rotation about y-axis
-            joint['x'] = cos_y * rot_x - sin_y * rot_z
-            joint['y'] = rot_y
-            joint['z'] = sin_y * rot_x + cos_y * rot_z
-
-    return body_info
 
 
 if __name__ == "__main__":

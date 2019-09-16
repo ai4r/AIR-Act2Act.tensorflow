@@ -1,6 +1,9 @@
 import numpy as np
 import math
-from utils.nao import convert_to_nao, solve_kinematics, vectorize
+
+from utils.nao import convert_to_nao, solve_kinematics
+from utils.AIR import get_upper_body_joints
+from data.pca import pca
 
 
 def normalize_body_data(body, feature_type):
@@ -8,6 +11,8 @@ def normalize_body_data(body, feature_type):
         return norm_to_nao_angles(body)
     elif feature_type == 'torso':
         return norm_to_torso(body)
+    elif feature_type == 'pca':
+        return norm_by_pca(body)
     else:
         raise (ValueError, "unknown type to normalize: %s" % feature_type)
 
@@ -17,6 +22,8 @@ def denormalize_feature(features, feature_type):
         return denorm_from_nao_angles(features)
     elif feature_type == 'torso':
         return denorm_from_torso(features)
+    elif feature_type == 'pca':
+        return denorm_from_pca(features)
     else:
         raise (ValueError, "unknown type to normalize: %s" % feature_type)
 
@@ -26,6 +33,8 @@ def count_feature(feature_type):
         return 10
     elif feature_type == 'torso':
         return 24
+    elif feature_type == 'pca':
+        return pca.n_components()
     else:
         raise (ValueError, "unknown type to normalize: %s" % feature_type)
 
@@ -33,19 +42,8 @@ def count_feature(feature_type):
 # move origin to torso and
 # normalize to the distance between torso and spineShoulder
 def norm_to_torso(body):
-    shoulderRight = vectorize(body[8])
-    shoulderLeft = vectorize(body[4])
-    elbowRight = vectorize(body[9])
-    elbowLeft = vectorize(body[5])
-    wristRight = vectorize(body[10])
-    wristLeft = vectorize(body[6])
-
-    torso = vectorize(body[0])
-    spineShoulder = vectorize(body[20])
-    head = vectorize(body[3])
-
-    def norm_to_distance(origin, basis, joint):
-        return (joint - origin) / np.linalg.norm(basis - origin) if any(joint) else joint
+    torso, spineShoulder, head, shoulderLeft, elbowLeft, wristLeft, shoulderRight, elbowRight, wristRight = \
+        get_upper_body_joints(body)
 
     features = list()
     features.extend(norm_to_distance(torso, spineShoulder, spineShoulder))
@@ -59,6 +57,10 @@ def norm_to_torso(body):
     return features
 
 
+def norm_to_distance(origin, basis, joint):
+    return (joint - origin) / np.linalg.norm(basis - origin) if any(joint) else joint
+
+
 def denorm_from_torso(features):
     # pelvis
     pelvis = np.array([0, 0, 0])
@@ -70,9 +72,23 @@ def denorm_from_torso(features):
     return np.vstack((pelvis, np.split(features, 8)))
 
 
-def norm_to_joint_angles(body):
-    # to be updated
-    pass
+def norm_by_pca(body):
+    features = pca.get_features(body)
+    return pca.transform([features])[0]
+
+
+def denorm_from_pca(features):
+    restored = pca.inverse_transform([features])[0]
+    joints = np.split(restored, 9)
+
+    pelvis = np.array([0, 0, 0])
+    features = list()
+    for idx in range(1, len(joints)):
+        features.append(norm_to_distance(joints[0], joints[1], joints[idx]))
+    spine_len = 3.
+    features = np.array(features) * spine_len
+
+    return np.vstack((pelvis, features))
 
 
 # convert body 3d positions to nao angles

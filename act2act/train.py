@@ -39,6 +39,7 @@ tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
 FLAGS = tf.app.flags.FLAGS
 
 train_dir = os.path.normpath(os.path.join(FLAGS.train_dir,
+    'human_{0}'.format(human_feature_type), 'robot_{0}'.format(robot_feature_type),
     'in_{0}'.format(source_len), 'out_{0}'.format(target_len))
 )
 

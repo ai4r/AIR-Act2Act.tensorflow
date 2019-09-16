@@ -1,20 +1,12 @@
 import numpy as np
 from math import cos, sin, atan2, fabs, copysign
-from utils.AIR import vectorize
+from utils.AIR import get_upper_body_joints
 
 
 def convert_to_nao(body):
     # joint information
-    shoulderRight = vectorize(body[8])
-    shoulderLeft = vectorize(body[4])
-    elbowRight = vectorize(body[9])
-    elbowLeft = vectorize(body[5])
-    wristRight = vectorize(body[10])
-    wristLeft = vectorize(body[6])
-
-    spineBase = vectorize(body[0])
-    spineShoulder = vectorize(body[20])
-    head = vectorize(body[3])
+    spineBase, spineShoulder, head, shoulderLeft, elbowLeft, wristLeft, shoulderRight, elbowRight, wristRight = \
+        get_upper_body_joints(body)
 
     ####### RIGHT ARM #######
     r_8_9_human = elbowRight - shoulderRight
@@ -61,8 +53,8 @@ def convert_to_nao(body):
     # HeadPitch += radians(6.5)
 
     return [LHipYawPitch, HeadPitch,
-             LShoulderPitch, LShoulderRoll, LElbowYaw, LElbowRoll,
-             RShoulderPitch, RShoulderRoll, RElbowYaw, RElbowRoll]
+            LShoulderPitch, LShoulderRoll, LElbowYaw, LElbowRoll,
+            RShoulderPitch, RShoulderRoll, RElbowYaw, RElbowRoll]
 
 
 def rotate_x(vector, angle):

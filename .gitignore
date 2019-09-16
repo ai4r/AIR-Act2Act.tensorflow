@@ -106,5 +106,6 @@ venv.bak/
 # else
 *.npz
 *.joint
+*.sav
 model/
 .idea/
