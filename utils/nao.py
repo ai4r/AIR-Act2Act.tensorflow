@@ -57,6 +57,13 @@ def convert_to_nao(body):
             RShoulderPitch, RShoulderRoll, RElbowYaw, RElbowRoll]
 
 
+# (mean, min, max) values of joints in radians
+def configuration():
+    return [(0.0, -1.1453, 0.7408), (0.0, -0.6720, 0.5149),
+            (1.5908, -2.0857, 2.0857), (0.0, -0.3142, 1.3265), (0.0, -2.0857, 2.0857), (0.0, -1.5446, -0.0349),
+            (1.5908, -2.0857, 2.0857), (0.0, -1.3265, 0.3142), (0.0, -2.0857, 2.0857), (0.0, 0.0349, 1.5446)]
+
+
 def rotate_x(vector, angle):
     A = np.array([[1, 0, 0],
                   [0, cos(angle), sin(angle)],

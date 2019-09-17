@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-from utils.nao import convert_to_nao, solve_kinematics
+from utils.nao import convert_to_nao, solve_kinematics, configuration
 from utils.AIR import get_upper_body_joints
 from data.pca import pca
 
@@ -94,10 +94,42 @@ def denorm_from_pca(features):
 # convert body 3d positions to nao angles
 def norm_to_nao_angles(body):
     nao_angles = np.array(convert_to_nao(body))
-    return ((nao_angles + math.pi) / (math.pi * 2)).tolist()
+    config = configuration()
+
+    normalized = []
+    for idx in range(len(nao_angles)):
+        nao_angle = nao_angles[idx]
+        # normalize to [0, 1]
+        min = config[idx][0] - np.pi
+        max = config[idx][0] + np.pi
+        if nao_angle < min:
+            nao_angle += np.pi * 2
+        if nao_angle > max:
+            nao_angle -= np.pi * 2
+        value = (nao_angle - min) / (max - min)
+        # scale to [-1, 1]
+        value = value * (1 - (-1)) + (-1)
+        normalized.append(value)
+
+    return normalized
 
 
 # convert nao angles to body 3d positions
 def denorm_from_nao_angles(features):
-    angles = features * (math.pi * 2) - math.pi
+    config = configuration()
+
+    angles = []
+    for idx in range(len(features)):
+        # scale to [0, 1]
+        value = (features[idx] - (-1)) / (1 - (-1))
+        # de-normalize to original scale
+        min = config[idx][0] - np.pi
+        max = config[idx][0] + np.pi
+        value = value * (max - min) + min
+        if value < min:
+            value += np.pi * 2
+        if value > max:
+            value -= np.pi * 2
+        angles.append(value)
+
     return solve_kinematics(*angles)

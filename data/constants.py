@@ -11,7 +11,7 @@ target_len = 20
 context_len = 10
 dist_len = 1
 
-human_feature_type = 'pca'  # {'nao_angles', 'torso', 'pca'}
+human_feature_type = 'torso'  # {'torso', 'pca'}
 robot_feature_type = 'nao_angles'  # {'nao_angles'}
 
 src = "./joint files"
