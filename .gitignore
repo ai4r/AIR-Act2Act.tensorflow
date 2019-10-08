@@ -107,5 +107,6 @@ venv.bak/
 *.npz
 *.joint
 *.sav
+*.pickle
 model/
 .idea/
