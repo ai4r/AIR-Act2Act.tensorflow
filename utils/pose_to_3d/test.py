@@ -40,6 +40,7 @@ def show_skeletons(ax_2d, ax_3d, skel_2d, z_out, z_gt=None):
 
 
 def webcam():
+    # initialize web-cam
     image_width = 640
     image_height = 480
     cap = cv2.VideoCapture(0)
@@ -52,6 +53,7 @@ def webcam():
     ax2 = fig.add_subplot(1, 2, 2, projection='3d')
     plt.ion()
 
+    # iterate
     while True:
         # get camera frame
         ret, frame = cap.read()
@@ -68,16 +70,16 @@ def webcam():
 
         # else, convert 2d pose to 3d pose
         user_key_points = key_points[0]
-        if user_key_points[config.LShoulder].any() and user_key_points[config.RShoulder].any():
-            # normalize 2d pose
+        if user_key_points[config.RShoulder].any() and user_key_points[config.LShoulder].any():
+            # normalize and refine 2d pose
             skel_2d = normalize_pose(user_key_points)
-            skel_2d_upper = skel_2d[config.upper, :]
+            skel_2d = refine_pose(skel_2d)
 
             # infer z component
+            skel_2d_upper = skel_2d[config.upper, :]
             v_input = pose_to_input(skel_2d_upper)
             z_out = infer_z(v_input)
             z_out = z_out.detach().cpu().numpy()
-            # print(z_out)
 
             # draw 3d skeleton
             skel_2d = skel_2d.transpose()  # [(x,y) x n_joint]

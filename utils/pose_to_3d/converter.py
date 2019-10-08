@@ -50,6 +50,16 @@ class OpenPoseData:
                       self.RElbow,
                       self.RWrist]
 
+        self.stand = [[+0.0, +1.7],
+                      [+0.0, +0.0],
+                      [+0.0, -0.5],
+                      [+0.5, +0.0],
+                      [+0.5, +1.0],
+                      [+0.5, +2.0],
+                      [-0.5, +0.0],
+                      [-0.5, +1.0],
+                      [-0.5, +2.0]]
+
 
 # OpenPose output format
 config = OpenPoseData()
@@ -75,7 +85,9 @@ def normalize_pose(key_points):
     anchor_pt = (skel[rshoulder, :] + skel[lshoulder, :]) / 2.0  # center of shoulders
     skel[1, :] = anchor_pt  # change neck point
     resize_factor = distance.euclidean(skel[rshoulder, :], skel[lshoulder, :])
-    skel[:, :] = (skel[:, :] - anchor_pt) / resize_factor
+    for i in range(len(skel)):
+        if skel[i, :].any():
+            skel[i, :] = (skel[i, :] - anchor_pt) / resize_factor
 
     # make shoulders align
     angle = angle_between(skel[rshoulder, :] - skel[lshoulder, :], [-1.0, 0.0])
@@ -106,3 +118,10 @@ def infer_z(skel_2d):
     z_out = net(skel_2d)
 
     return z_out
+
+
+def refine_pose(skel_2d):
+    for idx, joint in enumerate(config.upper):
+        if not skel_2d[joint].any():
+            skel_2d[joint] = skel_2d[config.Neck] + config.stand[idx]
+    return skel_2d
