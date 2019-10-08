@@ -1,13 +1,14 @@
+import os
 import math
 import numpy as np
-from pyquaternion import Quaternion
 from scipy.spatial import distance
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-model_path = './model/trained_net.pt'
+path = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(path, 'trained_net.pt')
 
 
 class Net(nn.Module):
@@ -27,6 +28,32 @@ class Net(nn.Module):
         return x
 
 
+class OpenPoseData:
+    def __init__(self):
+        self.Nose = 0
+        self.Neck = 1
+        self.RShoulder = 2
+        self.RElbow = 3
+        self.RWrist = 4
+        self.LShoulder = 5
+        self.LElbow = 6
+        self.LWrist = 7
+        self.MidHip = 8
+
+        self.upper = [self.MidHip,
+                      self.Neck,
+                      self.Nose,
+                      self.LShoulder,
+                      self.LElbow,
+                      self.LWrist,
+                      self.RShoulder,
+                      self.RElbow,
+                      self.RWrist]
+
+
+# OpenPose output format
+config = OpenPoseData()
+
 # cpu or gpu?
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('using device {}'.format(device))
@@ -38,26 +65,20 @@ net.load_state_dict(torch.load(model_path))
 net.train(False)
 
 
-def convert_pose(skel_2d):
-    # inference
-    skel_2d = skel_2d.to(device)
-    z_out = net(skel_2d)
-
-    return z_out
-
-
-def normalize_pose(_skel):
+def normalize_pose(key_points):
     # remove confidence dim
-    skel = _skel[:, :2]
+    skel = key_points[:, :2]
 
     # resize skeleton so that the length between shoulders is 1
-    anchor_pt = (skel[2, :] + skel[5, :]) / 2.0  # center of shoulders
+    rshoulder = config.RShoulder
+    lshoulder = config.LShoulder
+    anchor_pt = (skel[rshoulder, :] + skel[lshoulder, :]) / 2.0  # center of shoulders
     skel[1, :] = anchor_pt  # change neck point
-    resize_factor = distance.euclidean(skel[2, :], skel[5, :])
+    resize_factor = distance.euclidean(skel[rshoulder, :], skel[lshoulder, :])
     skel[:, :] = (skel[:, :] - anchor_pt) / resize_factor
 
-    # make it shoulders align
-    angle = angle_between(skel[2, :] - skel[5, :], [-1.0, 0.0])
+    # make shoulders align
+    angle = angle_between(skel[rshoulder, :] - skel[lshoulder, :], [-1.0, 0.0])
     for i in range(len(skel)):
         x = +skel[i, 0] * math.cos(angle) + skel[i, 1] * math.sin(angle)
         y = -skel[i, 0] * math.sin(angle) + skel[i, 1] * math.cos(angle)
@@ -73,10 +94,15 @@ def angle_between(p1, p2):
     return (ang1 - ang2) % (2 * np.pi)
 
 
-def skel_to_input(skel_2d):
-    skel_2d = normalize_pose(skel_2d)
-    idx_upper = [8, 1, 0, 5, 6, 7, 2, 3, 4]
-    skel_2d = skel_2d[idx_upper, :]
+def pose_to_input(skel_2d):
     v_input = skel_2d.reshape(-1)
     v_input = torch.from_numpy(v_input).float()
-    return v_input, skel_2d
+    return v_input
+
+
+def infer_z(skel_2d):
+    # inference
+    skel_2d = skel_2d.to(device)
+    z_out = net(skel_2d)
+
+    return z_out
