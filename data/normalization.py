@@ -1,5 +1,4 @@
 import numpy as np
-import math
 
 from utils.nao import convert_to_nao, solve_kinematics, configuration
 from utils.AIR import get_upper_body_joints

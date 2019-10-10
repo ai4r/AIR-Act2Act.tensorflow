@@ -25,6 +25,9 @@ except ImportError as e:
 # Custom Params (refer to include/openpose/flags.hpp for more parameters)
 params = dict()
 params["model_folder"] = openpose_path + "/models/"
+params["render_pose"] = 1
+params["net_resolution"] = "-1x368"
+params["disable_blending"] = False
 
 # Starting OpenPose
 opWrapper = op.WrapperPython()

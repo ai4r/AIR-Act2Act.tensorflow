@@ -79,10 +79,23 @@ def init_axis(ax):
     ax.set_ylim3d(0, 2 * max)
     ax.set_zlim3d(-max, max)
 
-    ax.view_init(-80, 90)
+    ax.view_init(elev=-80, azim=90)
 
 
 def animate_3d(f, angles, axes):
+    ret_artists = list()
+    for idx in range(len(angles)):
+        init_axis(axes[idx])
+        cur_angles = angles[idx][f] if f < len(angles[idx]) else angles[idx][-1]
+        pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = cur_angles
+        ret_artists.extend(draw_parts(axes[idx], [pelvis, neck, head]))
+        ret_artists.extend(draw_parts(axes[idx], [neck, lshoulder, lelbow, lwrist]))
+        ret_artists.extend(draw_parts(axes[idx], [neck, rshoulder, relbow, rwrist]))
+        ret_artists.extend([axes[idx].text(0, 0, 0, '{0}/{1}'.format(f + 1, len(angles[idx])))])
+    return ret_artists
+
+
+def draw_parts(ax, joints):
     def add_points(points):
         xs, ys, zs = list(), list(), list()
         for point in points:
@@ -91,20 +104,9 @@ def animate_3d(f, angles, axes):
             zs.append(point[2])
         return xs, ys, zs
 
-    ret_artists = list()
-    for idx in range(len(angles)):
-        init_axis(axes[idx])
-        cur_angles = angles[idx][f] if f < len(angles[idx]) else angles[idx][-1]
-        pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = cur_angles
-        xs, ys, zs = add_points([pelvis, neck, head])
-        ret_artists.extend(axes[idx].plot(xs, ys, zs, color='b'))
-        xs, ys, zs = add_points([neck, lshoulder, lelbow, lwrist])
-        ret_artists.extend(axes[idx].plot(xs, ys, zs, color='b'))
-        xs, ys, zs = add_points([neck, rshoulder, relbow, rwrist])
-        ret_artists.extend(axes[idx].plot(xs, ys, zs, color='b'))
-
-        ret_artists.extend([axes[idx].text(0, 0, 0, '{0}/{1}'.format(f + 1, len(angles[idx])))])
-    return ret_artists
+    xs, ys, zs = add_points(joints)
+    ret = ax.plot(xs, ys, zs, color='b')
+    return ret
 
 
 if __name__ == "__main__":
