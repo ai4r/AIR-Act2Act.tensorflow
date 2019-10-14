@@ -8,6 +8,9 @@ def convert_to_nao(body):
     spineBase, spineShoulder, head, shoulderLeft, elbowLeft, wristLeft, shoulderRight, elbowRight, wristRight = \
         get_upper_body_joints(body)
 
+    if (spineBase == spineShoulder).all():
+        return [config[0] for config in configuration()]
+
     ####### RIGHT ARM #######
     r_8_9_human = elbowRight - shoulderRight
     r_9_10_human = wristRight - elbowRight

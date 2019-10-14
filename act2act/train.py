@@ -30,8 +30,8 @@ tf.app.flags.DEFINE_string("train_dir", os.path.normpath("../model/"), "Training
 
 tf.app.flags.DEFINE_string("action", "all", "The action to train on.")
 tf.app.flags.DEFINE_string("loss_to_use", "sampling_based", "The type of loss to use, supervised or sampling_based")
-tf.app.flags.DEFINE_integer("test_every", 100, "How often to compute error on the test set.")
-tf.app.flags.DEFINE_integer("save_every", 100, "How often to compute error on the test set.")
+tf.app.flags.DEFINE_integer("test_every", 500, "How often to compute error on the test set.")
+tf.app.flags.DEFINE_integer("save_every", 500, "How often to compute error on the test set.")
 tf.app.flags.DEFINE_boolean("sample", False, "Set to True for sampling.")
 tf.app.flags.DEFINE_boolean("use_cpu", False, "Whether to use the CPU")
 tf.app.flags.DEFINE_integer("load", 0, "Try to load a previous checkpoint.")
