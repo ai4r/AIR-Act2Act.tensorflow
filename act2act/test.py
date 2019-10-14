@@ -5,7 +5,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from utils.pose_to_3d.converter import *
 from utils.openpose.body import pose_keypoints
-from utils.AIR import to_joint
 from act2act.train import *
 from act2act.draw import init_axis, draw_parts
 from data.normalization import normalize_body_data
@@ -45,6 +44,13 @@ def show_skeletons(ax_2d, ax_3d, skel_2d, z_out, z_gt=None):
 
 
 def pose_to_AIR(skel_3d_upper):
+    def to_joint(vector):
+        joint = dict()
+        joint['x'] = -vector[0]
+        joint['y'] = -vector[1]
+        joint['z'] = -vector[2]
+        return joint
+
     body = [to_joint([0, 0, 0])] * 25
     body[ 8] = to_joint(skel_3d_upper[config.upper.index(config.RShoulder)])
     body[ 4] = to_joint(skel_3d_upper[config.upper.index(config.LShoulder)])
@@ -78,7 +84,6 @@ def webcam():
     # initialize act2act model
     sess = create_session()
     FLAGS.load = 10000
-    FLAGS.use_cpu = True
     model = create_model(sess)
     print("Model created")
     human = list()
@@ -99,7 +104,7 @@ def webcam():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        # continue if no people is detected
+        # do nothing if no people is detected
         if len(key_points.shape) != 3:
             continue
 
@@ -126,7 +131,7 @@ def webcam():
             z_out_expand = np.expand_dims(z_out_trans, axis=1)
             skel_3d_upper = np.append(skel_2d_upper, z_out_expand, axis=1)
             body = pose_to_AIR(skel_3d_upper)
-            human.append(np.hstack([0.5, normalize_body_data(body, human_feature_type)]))
+            human.append(np.hstack([0.2, normalize_body_data(body, human_feature_type)]))
             robot.append([0.0] * 10 if len(robot) < source_len else next_seq[0][0])
             human = human[-source_len:]
             robot = robot[-source_len:]
@@ -140,10 +145,11 @@ def webcam():
             decoder_out = decoder_inp
             _, next_seq, _ = model.step(sess, context_inp, encoder_inp, decoder_inp, decoder_out,
                                         forward_only=True, srnn_seeds=True)
+            yield next_seq[0][0]
 
             # draw robot pose
-            angles = denormalize_feature(next_seq[0][0], robot_feature_type)
-            pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = angles
+            joints = denormalize_feature(next_seq[0][0], robot_feature_type)
+            pelvis, neck, head, lshoulder, lelbow, lwrist, rshoulder, relbow, rwrist = joints
             draw_parts(ax3, [pelvis, neck, head])
             draw_parts(ax3, [neck, lshoulder, lelbow, lwrist])
             draw_parts(ax3, [neck, rshoulder, relbow, rwrist])
@@ -160,4 +166,5 @@ def webcam():
 
 
 if __name__ == "__main__":
-    webcam()
+    for _ in webcam():
+        continue
