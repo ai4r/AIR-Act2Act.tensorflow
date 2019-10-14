@@ -4,9 +4,12 @@ from utils.AIR import get_upper_body_joints
 
 
 def convert_to_nao(body):
+    return joints_to_nao(get_upper_body_joints(body))
+
+
+def joints_to_nao(joints):
     # joint information
-    spineBase, spineShoulder, head, shoulderLeft, elbowLeft, wristLeft, shoulderRight, elbowRight, wristRight = \
-        get_upper_body_joints(body)
+    spineBase, spineShoulder, head, shoulderLeft, elbowLeft, wristLeft, shoulderRight, elbowRight, wristRight = joints
 
     if (spineBase == spineShoulder).all():
         return [config[0] for config in configuration()]

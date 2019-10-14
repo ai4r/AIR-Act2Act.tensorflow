@@ -24,6 +24,14 @@ def vectorize(joint):
     return np.array([joint['x'], joint['y'], joint['z']])
 
 
+def to_joint(vector):
+    joint = dict()
+    joint['x'] = vector[0]
+    joint['y'] = vector[1]
+    joint['z'] = vector[2]
+    return joint
+
+
 def get_upper_body_joints(body):
     shoulderRight = vectorize(body[8])
     shoulderLeft = vectorize(body[4])

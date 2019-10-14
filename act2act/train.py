@@ -53,7 +53,7 @@ def create_model(session, sampling=False):
         (source_len, count_feature(human_feature_type) + dist_len),
         context_len,
         (target_len, count_feature(robot_feature_type)),
-        FLAGS.size, # hidden layer size
+        FLAGS.size,  # hidden layer size
         FLAGS.num_layers,
         FLAGS.max_gradient_norm,
         FLAGS.batch_size,
@@ -68,17 +68,17 @@ def create_model(session, sampling=False):
         print("Creating model with fresh parameters.")
         session.run(tf.global_variables_initializer())
     else:
-        ckpt = tf.train.get_checkpoint_state( train_dir, latest_filename="checkpoint")
-        print( "train_dir", train_dir )
+        ckpt_path = os.path.join(train_dir, f'checkpoint-{FLAGS.load}')
+        ckpt = tf.train.get_checkpoint_state(ckpt_path, latest_filename="checkpoint")
         if ckpt and ckpt.model_checkpoint_path:
             # Check if the specific checkpoint exists
-            if os.path.isfile(os.path.join(train_dir, "checkpoint-{0}.index".format(FLAGS.load))):
+            if os.path.isfile(os.path.join(ckpt_path, "checkpoint-{0}.index".format(FLAGS.load))):
                 ckpt_name = os.path.normpath(os.path.join(os.path.join(train_dir, "checkpoint-{0}".format(FLAGS.load))))
             else:
                 raise ValueError("Asked to load checkpoint {0}, but it does not seem to exist".format(FLAGS.load))
 
-            print("Loading model {0}".format( ckpt_name ))
-            model.saver.restore( session, ckpt.model_checkpoint_path )
+            print("Loading model {0}".format(ckpt_name))
+            model.saver.restore(session, ckpt.model_checkpoint_path)
             return model
         else:
             print("Could not find checkpoint. Aborting.")
@@ -89,7 +89,7 @@ def create_model(session, sampling=False):
 
 def create_session():
     # Limit TF to take a fraction of the GPU memory
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
     device_count = {"GPU": 0} if FLAGS.use_cpu else {"GPU": 1}
     return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, device_count=device_count))
 
@@ -141,6 +141,8 @@ def data_generator(batch_size, data_type):
                 encoder_inp.append(robot_seq[:(source_len-1)])
                 decoder_inp.append(robot_seq[(source_len-1):-1])
                 decoder_out.append(robot_seq[-target_len:])
+
+                wer = 234
 
         if data_type == 'test':
             yield data_names[idx_test_data], \
