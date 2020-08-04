@@ -2,6 +2,8 @@
 
 ### This repository is no longer maintained.
 
+### Please visit [this repository](https://github.com/ai4r/AIR-Act2Act.pytorch) instead.
+
 ## Setting 
 -   Python = 3.6.1     
 -   Tensorflow = 1.11.0    
